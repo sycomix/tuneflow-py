@@ -73,11 +73,9 @@ class TestImportExportMIDI(unittest.TestCase):
             Path(__file__).parent, Path('caravan.test.test.mid'))
         midi_obj = MidiFile(filename=golden_midi_path)
         song = Song.from_midi(midi_obj=midi_obj)
-        export_file = open(export_midi_path, 'wb')
-        exported_midi = song.to_midi()
-        exported_midi.dump(file=export_file)
-        export_file.close()
-
+        with open(export_midi_path, 'wb') as export_file:
+            exported_midi = song.to_midi()
+            exported_midi.dump(file=export_file)
         self.assertEqual(len(midi_obj.tempo_changes),
                          len(exported_midi.tempo_changes))
         for i in range(len(midi_obj.tempo_changes)):

@@ -396,9 +396,7 @@ class Clip:
         return self._proto.HasField("audio_clip_data")
 
     def get_audio_clip_data(self) -> AudioClipData | None:
-        if not self.has_audio_clip_data():
-            return None
-        return self._proto.audio_clip_data
+        return None if not self.has_audio_clip_data() else self._proto.audio_clip_data
 
     def set_audio_file(self, file_path: str, start_tick: int, duration: float):
         '''
@@ -628,10 +626,11 @@ class Clip:
         if (end_index < 0):
             return []
 
-        if (end_index < start_index):
-            return []
-
-        return raw_notes[start_index:(end_index + 1)]
+        return (
+            []
+            if (end_index < start_index)
+            else raw_notes[start_index : (end_index + 1)]
+        )
 
     def _trim_conflict_part(self, start_tick: int, end_tick: int):
         '''
@@ -731,7 +730,7 @@ class Clip:
             if len(self._proto.notes) == 0:
                 self._next_note_id = 1
             else:
-                self._next_note_id = max([note_proto.id for note_proto in self._proto.notes]) + 1
+                self._next_note_id = max(note_proto.id for note_proto in self._proto.notes) + 1
 
         note_id = self._next_note_id
         if (self._next_note_id >= 2147483647):

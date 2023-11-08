@@ -14,10 +14,7 @@ def gain_to_db(gain: float):
     '''
     @param gain A value between 0 - 2, corresponding to -inf to +6dB, gain == 1 equals dB == 0.0
     '''
-    if (gain <= 0):
-        return -100
-
-    return 20 * log10(gain)
+    return -100 if (gain <= 0) else 20 * log10(gain)
 
 
 def volume_value_to_db(volume: float):

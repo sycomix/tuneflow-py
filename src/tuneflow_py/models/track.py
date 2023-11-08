@@ -15,10 +15,7 @@ TrackOutputType = song_pb2.TrackOutput.TrackOutputType
 
 class TrackOutput:
     def __init__(self, proto: song_pb2.TrackOutput | None  =None) -> None:
-        if not proto:
-            self._proto = song_pb2.TrackOutput()
-        else:
-            self._proto = proto
+        self._proto = song_pb2.TrackOutput() if not proto else proto
     
     def get_type(self):
         return self._proto.type
@@ -71,9 +68,6 @@ class Track:
         elif type == TrackType.MIDI_TRACK:
             self._proto.instrument.program = 0
             self._proto.instrument.is_drum = False
-        if type == TrackType.AUX_TRACK:
-            # TODO: Initialize aux track data.
-            pass
         self._proto.uuid = uuid if uuid is not None else Track._generate_track_id()
         self._proto.volume = volume
         self._proto.solo = solo
@@ -153,9 +147,7 @@ class Track:
         return self._proto.HasField('instrument')
 
     def get_instrument(self):
-        if not self.has_instrument():
-            return None
-        return self._proto.instrument
+        return None if not self.has_instrument() else self._proto.instrument
 
     def set_instrument(self, program: int, is_drum: bool):
         '''
@@ -232,9 +224,9 @@ class Track:
         '''
         if (self.get_type() != TrackType.MIDI_TRACK):
             return
-        instrument_info = self._proto.suggested_instruments.add(
-            program=program, is_drum=is_drum)
-        return instrument_info
+        return self._proto.suggested_instruments.add(
+            program=program, is_drum=is_drum
+        )
 
     def clear_suggested_instruments(self):
         del self._proto.suggested_instruments[:]
@@ -250,10 +242,14 @@ class Track:
         return self.get_clip_at(self.get_clip_count() - 1).get_clip_end_tick()
 
     def get_clip_by_id(self, clip_id: str):
-        for clip_proto in self._proto.clips:
-            if clip_proto.id == clip_id:
-                return self._create_clip_from_proto(proto=clip_proto)
-        return None
+        return next(
+            (
+                self._create_clip_from_proto(proto=clip_proto)
+                for clip_proto in self._proto.clips
+                if clip_proto.id == clip_id
+            ),
+            None,
+        )
 
     def create_midi_clip(self, clip_start_tick: int, clip_end_tick: int | None = None, insert_clip=True):
         '''
@@ -314,16 +310,15 @@ class Track:
         return clip
 
     def insert_clip(self, clip: Clip):
-        if clip.get_track() != self:
-            if clip.get_track() is not None:
-                # Clip belongs to another track.
-                clip.delete_from_parent(
-                    delete_associated_track_automation=False)
-            clip.track = self
-        else:
+        if clip.get_track() == self:
             # Clip already belongs to the track.
             return
 
+        if clip.get_track() is not None:
+            # Clip belongs to another track.
+            clip.delete_from_parent(
+                delete_associated_track_automation=False)
+        clip.track = self
         # Resolve conflict before inserting a new clip
         # to preserve the current order of clips.
         self._resolve_clip_conflict(
@@ -342,10 +337,14 @@ class Track:
             key=lambda x: x.clip_start_tick,
         )
 
-        for i in range(max(0, start_index), len(self._proto.clips)):
-            if self._proto.clips[i].id == clip.get_id():
-                return i
-        return -1
+        return next(
+            (
+                i
+                for i in range(max(0, start_index), len(self._proto.clips))
+                if self._proto.clips[i].id == clip.get_id()
+            ),
+            -1,
+        )
 
     def delete_clip(self, clip: Clip, delete_associated_track_automation: bool):
         index = self.get_clip_index(clip)
@@ -358,7 +357,7 @@ class Track:
             return
 
         if delete_associated_track_automation:
-            if index < 0 or index >= len(self._proto.clips):
+            if index >= len(self._proto.clips):
                 return
 
             # Remove automation points within range
@@ -393,13 +392,12 @@ class Track:
 
     def create_audio_plugin(self, tf_id: str):
         plugin_info = decode_audio_plugin_tuneflow_id(tf_id)
-        plugin = AudioPlugin(
+        return AudioPlugin(
             name=plugin_info["name"],
             manufacturer_name=plugin_info["manufacturer_name"],
             plugin_format_name=plugin_info["plugin_format_name"],
             plugin_version=plugin_info["plugin_version"],
         )
-        return plugin
 
     def get_automation(self):
         return AutomationData(self._proto.automation)
@@ -420,9 +418,7 @@ class Track:
         return self._proto.HasField('output')
     
     def get_output(self):
-        if not self.has_output():
-            return None
-        return TrackOutput(proto=self._proto.output)
+        return None if not self.has_output() else TrackOutput(proto=self._proto.output)
 
     def get_or_create_output(self):
         return TrackOutput(proto=self._proto.output)
@@ -462,6 +458,5 @@ class Track:
     def get_visible_notes(self) -> List[Note]:
         visible_notes = []
         for clip in self.get_clips():
-            for note in clip.get_notes():
-                visible_notes.append(note)
+            visible_notes.extend(iter(clip.get_notes()))
         return sorted(visible_notes, key=lambda note: note.get_start_tick())

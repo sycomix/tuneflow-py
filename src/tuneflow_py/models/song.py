@@ -36,7 +36,7 @@ class Song:
         '''
         if self.get_track_count() == 0:
             return 0
-        return max([track.get_track_end_tick() for track in self.get_tracks()])
+        return max(track.get_track_end_tick() for track in self.get_tracks())
 
     def get_duration(self):
         return self.tick_to_seconds(self.get_last_tick())
@@ -49,10 +49,14 @@ class Song:
             yield Track(song=self, proto=track_proto)
 
     def get_track_by_id(self, track_id: str) -> Track | None:
-        for track_proto in self._proto.tracks:
-            if track_proto.uuid == track_id:
-                return Track(song=self, proto=track_proto)
-        return None
+        return next(
+            (
+                Track(song=self, proto=track_proto)
+                for track_proto in self._proto.tracks
+                if track_proto.uuid == track_id
+            ),
+            None,
+        )
 
     def get_track_at(self, index):
         return Track(song=self, proto=self._proto.tracks[index])
@@ -62,10 +66,14 @@ class Song:
         Get the index of the track within the tracks list.
         Returns -1 if no track matches the track id.
         '''
-        for index, track in enumerate(self.get_tracks()):
-            if track.get_id() == track_id:
-                return index
-        return -1
+        return next(
+            (
+                index
+                for index, track in enumerate(self.get_tracks())
+                if track.get_id() == track_id
+            ),
+            -1,
+        )
 
     def remove_track(self, track_id: str):
         '''
@@ -148,8 +156,7 @@ class Song:
         self._proto.structures.sort(key=lambda x: x.tick)
 
     def update_structure_at_tick(self, tick: int, type: StructureType):
-        existing_structure = self.get_structure_at_tick(tick)
-        if existing_structure:
+        if existing_structure := self.get_structure_at_tick(tick):
             existing_structure.set_type(type)
         else:
             self.create_structure(tick, type)
@@ -338,9 +345,7 @@ class Song:
             target_tempo,
             lambda x: x.ticks,
         )
-        if index < 0:
-            index = 0
-
+        index = max(index, 0)
         if index >= len(self._proto.tempos):
             index = len(self._proto.tempos) - 1
 
@@ -469,7 +474,7 @@ class Song:
         return round(base_tempo_change_proto.ticks + time_delta * ticks_per_second_since_last_tempo_change)
 
     def overwrite_tempo_changes(self, tempo_events: List[TempoEvent]):
-        if len(tempo_events) == 0:
+        if not tempo_events:
             raise Exception('Cannot clear all the tempo events.')
         sorted_tempo_events = sorted(
             tempo_events, key=lambda tempo_event: tempo_event.get_ticks())
@@ -486,7 +491,7 @@ class Song:
         self.retiming_tempo_events()
 
     def overwrite_time_signature_changes(self, time_signatures: List[TimeSignatureEvent]):
-        if len(time_signatures) == 0:
+        if not time_signatures:
             raise Exception('At least one time signature needs to be present.')
         del self._proto.time_signatures[:]
         for time_signature_change in time_signatures:
@@ -509,9 +514,7 @@ class Song:
             target_time_signature,
             lambda x: x.ticks,
         )
-        if index < 0:
-            index = 0
-
+        index = max(index, 0)
         if index >= len(self._proto.time_signatures):
             index = len(self._proto.time_signatures) - 1
 
@@ -538,13 +541,12 @@ class Song:
 
     def create_audio_plugin(self, tf_id: str):
         pluginInfo = decode_audio_plugin_tuneflow_id(tf_id)
-        plugin = AudioPlugin(
+        return AudioPlugin(
             name=pluginInfo["name"],
             manufacturer_name=pluginInfo["manufacturer_name"],
             plugin_format_name=pluginInfo["plugin_format_name"],
             plugin_version=pluginInfo["plugin_version"],
         )
-        return plugin
 
     def create_track(self, type: int,
                      index: int | None = None,
@@ -561,11 +563,6 @@ class Song:
             type=type, song=self, rank=rank if rank is not None else self.get_next_track_rank())
         if assign_default_sampler_plugin and type == TrackType.MIDI_TRACK:
             new_track.set_sampler_plugin(new_track.create_audio_plugin(AudioPlugin.DEFAULT_SYNTH_TFID))
-        if type == TrackType.AUX_TRACK:
-            # TODO: Set default input bus rank.
-            pass
-            # new_track.getAuxTrackData().setInputBusRank(1)
-
         if index is None:
             index = len(self._proto.tracks)
         self._proto.tracks.insert(index, new_track._proto)
@@ -573,7 +570,11 @@ class Song:
         return new_track
 
     def get_next_track_rank(self):
-        return 1 if len(self._proto.tracks) == 0 else max([track.rank for track in self._proto.tracks]) + 1
+        return (
+            1
+            if len(self._proto.tracks) == 0
+            else max(track.rank for track in self._proto.tracks) + 1
+        )
 
     def clone_track(self, track: Track) -> Track:
         '''
