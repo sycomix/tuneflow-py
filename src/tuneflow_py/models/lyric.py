@@ -115,11 +115,7 @@ class LyricLine:
         proto: song_pb2.LyricLine | None = None
     ):
         self.lyrics = lyrics
-        if proto is not None:
-            self._proto = proto
-        else:
-            self._proto = song_pb2.LyricLine()
-
+        self._proto = proto if proto is not None else song_pb2.LyricLine()
         if len(self._proto.words) == 0:
             # Create a default placeholder for the empty line
             self._proto.words.add(
@@ -129,9 +125,7 @@ class LyricLine:
             )
 
     def __len__(self) -> int:
-        if self.is_empty():
-            return 0
-        return len(self._proto.words)
+        return 0 if self.is_empty() else len(self._proto.words)
 
     def __getitem__(self, index: int) -> LyricWord:
         return self.get_word_at_index(index)
@@ -190,7 +184,7 @@ class LyricLine:
         start_tick: int,
         end_tick: int,
     ):
-        if len(tokens) == 0:
+        if not tokens:
             self.clear()
             return
         tick_per_word = (end_tick - start_tick) // len(tokens)
@@ -242,9 +236,7 @@ class LyricLine:
             tick,
             key=lambda item: item if isinstance(item, int) else item.start_tick
         )
-        if index in range(len(line.words)):
-            return index
-        return -1
+        return index if index in range(len(line.words)) else -1
 
     def get_index_of_word_at_tick(self, tick: int):
         '''
@@ -345,8 +337,7 @@ class LyricLine:
                     if re.match(r"^[']+$", char) and re.match(r'^[A-Za-z0-9]+$', current_token):
                         current_token += char
                     else:
-                        tokens.append(current_token)
-                        tokens.append(char)
+                        tokens.extend((current_token, char))
                         current_token = ''
                 else:
                     tokens.append(char)
@@ -450,8 +441,7 @@ class Lyrics:
         Yields:
             int: The index of the line that contains the tick, or -1 if not found.
         '''
-        for index in Lyrics._get_index_of_line_at_tick(self._proto, tick):
-            yield index
+        yield from Lyrics._get_index_of_line_at_tick(self._proto, tick)
 
     def get_line_at_index(self, index: int):
         if index < 0 or index >= len(self._proto.lines):

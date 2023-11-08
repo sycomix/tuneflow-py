@@ -47,7 +47,7 @@ class Note:
 
     def set_pitch(self, pitch: int):
         if not Note.is_valid_pitch(pitch):
-            raise Exception("Invalid note pitch " + str(pitch))
+            raise Exception(f"Invalid note pitch {pitch}")
         self._proto.pitch = pitch
 
     def adjust_pitch(self, pitch_offset: int):

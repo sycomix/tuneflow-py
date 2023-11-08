@@ -83,7 +83,7 @@ class AutomationTarget:
     @staticmethod
     def decode_automation_target(encoded_target: str):
         parts = encoded_target.split('^^')
-        if len(parts) == 0:
+        if not parts:
             raise Exception(f'Invalid automation target id: {encoded_target}')
 
         type = int(parts[0])
@@ -231,7 +231,7 @@ class AutomationValue:
         '''
         @param overwrite_values_in_drag_area If true, all values in between the moved points' old and new indexes will be removed.
         '''
-        if (len(point_ids) == 0):
+        if not point_ids:
             return
 
         point_id_set = set(point_ids)
@@ -301,7 +301,7 @@ class AutomationValue:
             if len(self._proto.points) == 0:
                 self._next_point_id = 1
             else:
-                self._next_point_id = max([point.id for point in self._proto.points]) + 1
+                self._next_point_id = max(point.id for point in self._proto.points) + 1
 
         point_id = self._next_point_id
         if (self._next_point_id >= 2147483647):
@@ -355,10 +355,7 @@ class AutomationData:
     '''
 
     def __init__(self, proto: song_pb2.AutomationData | None = None):
-        if proto is not None:
-            self._proto = proto
-        else:
-            self._proto = song_pb2.AutomationData()
+        self._proto = proto if proto is not None else song_pb2.AutomationData()
 
     def get_automation_targets(self):
         '''
